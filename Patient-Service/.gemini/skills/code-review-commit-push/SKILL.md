@@ -1,137 +1,178 @@
-# SKILL.md — Developer Skills & Conventions
+# SKILL.md — Code Review, Commit & Push
 
-> Quick reference for every developer working on Patient-Management-System.
-> Read this before writing any code.
+> **Skill**: `code-review-commit-push`
+> **Scope**: Patient-Management-System / Patient-Service
+> **Purpose**: Standard workflow every developer must follow before pushing any change.
 
 ---
 
-## 1. Project Bootstrap
+## Overview
 
-```bash
-# Clone
-git clone https://github.com/<org>/Patient-Management-System.git
-cd Patient-Management-System/Patient-Service
-
-# Build & test (H2, no Docker required)
-mvn clean install
-
-# Run locally (H2, H2 console at http://localhost:4000/h2-console)
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+Write Code → Self Review → Stage Logically → Commit (Conventional) → Push → PR
 ```
 
 ---
 
-## 2. Entity Conventions
+## Step 1 — Self Code Review Checklist
 
-| Rule | Example |
+Before staging anything, review your own diff (`git diff`):
+
+### General
+- [ ] No dead code, no commented-out blocks left behind
+- [ ] No `System.out.println` / raw debug logging
+- [ ] No hardcoded secrets, passwords, or tokens
+- [ ] No `TODO` left without a GitHub issue reference
+
+### Java / Spring
+- [ ] Entities have `@NotBlank` / `@Email` / `@Past` where appropriate
+- [ ] No entity objects leaked in API response — use DTOs
+- [ ] Service methods are `@Transactional` where DB writes occur
+- [ ] New fields in `Patient` have correct `nullable`, `length`, `updatable` constraints
+- [ ] Lombok annotations used — no manual getters/setters/constructors
+- [ ] `AuditorAware` fields (`createdBy`, `updatedBy`) not manually set
+
+### SQL / Data
+- [ ] `data.sql` saved as **UTF-8 No-BOM**
+- [ ] UUID column uses `gen_random_uuid()` (not `RANDOM_UUID()`) for H2 PostgreSQL mode
+- [ ] Timestamps in `data.sql` use space separator: `'2024-01-10 09:00:00'`
+- [ ] Any new table has a corresponding Flyway script for prod
+
+### Tests
+- [ ] New feature has at least one unit test
+- [ ] `mvn clean test` passes locally before committing
+
+---
+
+## Step 2 — Logical Staging (Atomic Commits)
+
+**Never `git add .` everything into one commit.**  
+Group changes by their concern:
+
+```bash
+# 1. Check what changed
+git status
+git diff
+
+# 2. Stage one logical group at a time
+git add <file1> <file2>
+git commit -m "..."
+
+# 3. Repeat for each logical group
+git add <file3>
+git commit -m "..."
+```
+
+### What counts as one logical commit?
+
+| Group | What belongs together |
 |---|---|
-| Always annotate with `@Entity` + `@Table(name="…")` | `@Table(name = "patients")` |
-| UUID primary key via Hibernate strategy | `@GeneratedValue(strategy = GenerationType.UUID)` |
-| Use `@NotBlank` / `@Email` / `@Past` on entity fields | validated at persistence layer |
-| Use `@CreationTimestamp` / `@UpdateTimestamp` for timestamps | no manual `LocalDateTime.now()` |
-| Use `@CreatedBy` / `@LastModifiedBy` for actor audit | populated by `JpaAuditingConfig` |
-| Mark `id` and `createdAt` as `updatable = false` | enforces immutability after insert |
-| Unique constraints via `@Index(unique=true)` in `@Table` | `idx_patients_email` |
-| Use Lombok: `@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor` | no manual getters/setters |
+| **Model change** | Entity file + any migration SQL |
+| **Feature** | Service + Repository + Controller for one endpoint |
+| **Test** | Test class(es) for the feature above |
+| **Config** | Properties file(s) for one concern |
+| **Seed data** | Only `data.sql` |
+| **Bug fix** | Only the files that fix the single bug |
+| **Docs** | Only markdown / documentation files |
+| **Refactor** | Rename / move with zero behaviour change |
 
 ---
 
-## 3. Spring Profiles
-
-| Profile | When to use | How to activate |
-|---|---|---|
-| `test` | Automated tests (default) | `spring.profiles.active=test` in `application.properties` |
-| `local` | Local manual run | `mvn spring-boot:run -Dspring-boot.run.profiles=local` |
-| `prod` | Production | Set env var `SPRING_PROFILES_ACTIVE=prod` |
-
----
-
-## 4. Database Rules
-
-### Test / Local (H2)
-- JDBC URL must include `MODE=PostgreSQL` — keeps SQL syntax compatible.
-- Use `gen_random_uuid()` in raw SQL (not `RANDOM_UUID()`) because H2 PostgreSQL mode maps the Postgres function name.
-- Always add `spring.jpa.defer-datasource-initialization=true` so `data.sql` runs **after** Hibernate DDL.
-- Save all SQL files as **UTF-8 without BOM** — H2 SQL parser rejects the BOM byte.
-
-### Production (PostgreSQL)
-- Flyway owns all schema changes. **Never** set `ddl-auto=create` or `ddl-auto=update` in prod.
-- Place migration scripts in `src/main/resources/db/migration/` as `V<n>__<description>.sql`.
-- `data.sql` is not loaded in prod — seed data goes into a Flyway migration.
-
----
-
-## 5. Seed Data (`data.sql`)
-
-Located at `Patient-Service/src/main/resources/data.sql`.
-Loaded automatically by Spring Boot on startup when `spring.sql.init.mode=always`.
-
-Rules:
-- Use `gen_random_uuid()` for the `id` column — mirrors JPA UUID generation.
-- Use ISO timestamps without `T` separator: `'2024-01-10 09:00:00'` (H2 compatible).
-- File encoding: **UTF-8 No BOM**.
-
----
-
-## 6. Adding a New Feature (Checklist)
+## Step 3 — Conventional Commit Format
 
 ```
-[ ] Create entity in models/ with UUID PK + auditing fields
-[ ] Create repository interface extending JpaRepository<Entity, UUID>
-[ ] Create service class annotated @Service @Transactional
-[ ] Create request/response DTOs (no entity leakage in API)
-[ ] Create @RestController with @Valid on request bodies
-[ ] Write unit tests (service layer with Mockito)
-[ ] Write integration tests (@SpringBootTest with H2 test profile)
-[ ] Add Flyway migration script for prod schema change
-[ ] Update CONTEXT.md and Architecture.md if design changes
+<type>(<scope>): <short imperative description>
+
+[optional body — what and why, not how]
+[optional footer — breaking changes, issue refs]
 ```
+
+### Types
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `refactor` | Code restructure, no behaviour change |
+| `test` | Adding or fixing tests |
+| `chore` | Tooling, config, dependencies |
+| `build` | Maven / build system changes |
+| `style` | Formatting, whitespace (no logic change) |
+
+### Scopes for this project
+
+| Scope | Examples |
+|---|---|
+| `model` | `Patient.java` entity changes |
+| `config` | Spring config, properties files |
+| `seed` | `data.sql` |
+| `test` | Test classes, test properties |
+| `docs` | CONTEXT.md, Architecture.md, SKILL.md |
+| `deps` | `pom.xml` dependency changes |
+| `ci` | GitHub Actions / pipeline |
+| `patient-service` | Cross-cutting Patient-Service changes |
+
+### Real examples from this project
+
+```
+feat(model): add Patient entity with UUID PK and JPA auditing
+feat(config): enable JPA auditing with AuditorAware stub
+feat(seed): add data.sql with 10 meaningful patient seed records
+fix(seed): use gen_random_uuid() and UTF-8 No-BOM for H2 compatibility
+fix(test): defer datasource init so data.sql runs after Hibernate DDL
+docs: add CONTEXT.md, Architecture.md, and SKILL.md
+refactor(docs): move CONTEXT.md and Architecture.md into Patient-Service/.gemini/
+refactor(docs): move SKILL.md into Patient-Service/.gemini/skills/code-review-commit-push/
+```
+
+### Rules
+- Subject line ≤ 72 characters
+- Use **imperative mood**: "add", "fix", "move" — not "added", "fixing"
+- No period at the end of the subject line
+- Body explains **why**, not what (code shows what)
 
 ---
 
-## 7. Auditing
-
-`JpaAuditingConfig` provides an `AuditorAware<String>` bean that currently
-returns `"system"` for all operations.
-
-**When auth is wired in**, replace the lambda body to extract the principal:
-```java
-// Example: Spring Security
-return () -> Optional.ofNullable(SecurityContextHolder.getContext())
-    .map(ctx -> ctx.getAuthentication())
-    .filter(Authentication::isAuthenticated)
-    .map(Authentication::getName);
-```
-
----
-
-## 8. Commit Conventions
-
-Use **Conventional Commits**:
-
-```
-<type>(<scope>): <short description>
-
-Types:  feat | fix | docs | refactor | test | chore | build
-Scope:  patient-service | model | config | seed | deps | ci
-
-Examples:
-  feat(model): add Patient entity with UUID PK and JPA auditing
-  feat(config): enable JPA auditing with AuditorAware stub
-  feat(seed): add data.sql with 10 patient seed records
-  fix(seed): use gen_random_uuid() and UTF-8 NoBOM for H2 compatibility
-  fix(test): defer datasource init so data.sql runs after Hibernate DDL
-  docs: add CONTEXT.md, Architecture.md, SKILL.md
-```
-
----
-
-## 9. Build Commands
+## Step 4 — Push & Pull Request
 
 ```bash
-mvn clean compile          # Compile only
-mvn clean test             # Run tests (H2, no Docker)
-mvn clean install          # Compile + test + package + install to local repo
-mvn clean install -DskipTests   # Skip tests (use sparingly)
-mvn spring-boot:run -Dspring-boot.run.profiles=local   # Run locally
+# Always pull latest before pushing to avoid conflicts
+git pull --rebase origin <branch>
+
+# Push your branch
+git push origin <branch>
+
+# Open PR — title must follow Conventional Commit format
+# e.g. "feat(model): add Patient entity with UUID PK"
+```
+
+### PR Checklist
+- [ ] PR title follows Conventional Commit format
+- [ ] Description explains the **why** of the change
+- [ ] Linked to a GitHub issue (if applicable): `Closes #<issue>`
+- [ ] `mvn clean install` passes in CI
+- [ ] No unrelated files are included in the PR
+- [ ] Reviewer assigned
+
+---
+
+## Quick Reference
+
+```bash
+# Review your own diff before staging
+git diff
+git diff --staged          # after git add, before commit
+
+# Undo staging (keep changes in working tree)
+git restore --staged <file>
+
+# Amend last commit message (before push only)
+git commit --amend -m "corrected message"
+
+# Interactive rebase to squash/reorder (before push only)
+git rebase -i HEAD~<n>
+
+# Check commit log
+git log --oneline -10
 ```
