@@ -4,6 +4,11 @@ import com.app.patient.patientservice.dto.PatientRequest;
 import com.app.patient.patientservice.dto.PatientResponse;
 import com.app.patient.patientservice.mapper.PatientMapper;
 import com.app.patient.patientservice.service.PatientService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +32,16 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
+@Tag(name = "Patient Controller", description = "Endpoints for managing patient records (CRUD operations)")
 public class PatientController {
 
     private final PatientService patientService;
 
     // GET / — returns all patients.
+    @Operation(summary = "Retrieve all patients", description = "Fetches a list of all registered patient records in the database.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved all patients")
+    })
     @GetMapping("/")
     public ResponseEntity<List<PatientResponse>> getAllPatients() {
         log.debug("GET /api/v1/patients/ — retrieving all patients");
@@ -40,8 +50,15 @@ public class PatientController {
     }
 
     // GET /{id} — returns patient by ID, or 404 if not found.
+    @Operation(summary = "Get patient by ID", description = "Retrieves details of a single patient matching the specified UUID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Patient record found"),
+            @ApiResponse(responseCode = "404", description = "Patient record not found for the given UUID")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<PatientResponse> getPatientById(@PathVariable UUID id) {
+    public ResponseEntity<PatientResponse> getPatientById(
+            @Parameter(description = "UUID of the patient to retrieve", required = true)
+            @PathVariable UUID id) {
         log.debug("GET /api/v1/patients/{} — retrieving patient by id", id);
         return patientService.getPatientById(id)
                 .map(ResponseEntity::ok)
@@ -52,6 +69,11 @@ public class PatientController {
     }
 
     // POST / — creates a new patient; validates request body; returns 201 Created.
+    @Operation(summary = "Create a new patient", description = "Registers a new patient with validated name, email, birth date, and contact details.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Patient record successfully created"),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload or duplicate email address")
+    })
     @PostMapping("/")
     public ResponseEntity<PatientResponse> createPatient(@Valid @RequestBody PatientRequest request) {
         log.info("POST /api/v1/patients/ — creating patient with email: {}", request.email());
@@ -60,7 +82,13 @@ public class PatientController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // PUT /{id} — updates name/phone/address of an existing patient; returns 200 OK.
+    // PUT /update — updates name/phone/address of an existing patient; returns 200 OK.
+    @Operation(summary = "Update an existing patient", description = "Updates details (name, phone, address, birthDate) of an existing patient matched by email.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Patient record successfully updated"),
+            @ApiResponse(responseCode = "404", description = "Patient record not found for the specified email"),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     @PutMapping("/update")
     public ResponseEntity<PatientResponse> updatePatient(
             @Valid @RequestBody PatientRequest request) {
@@ -70,10 +98,18 @@ public class PatientController {
     }
 
     // DELETE ?email={email} — deletes patient by email query parameter; returns 204 No Content.
+    @Operation(summary = "Delete patient by email", description = "Deletes a patient record matching the specified email address.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Patient record successfully deleted"),
+            @ApiResponse(responseCode = "404", description = "Patient record not found for the specified email")
+    })
     @DeleteMapping
-    public ResponseEntity<Void> deletePatient(@RequestParam(required = true) String email) {
+    public ResponseEntity<Void> deletePatient(
+            @Parameter(description = "Email address of the patient to delete", required = true)
+            @RequestParam(required = true) String email) {
         log.info("DELETE /api/v1/patients?email={} — deleting patient by email", email);
         patientService.deletePatient(email.trim());
         return ResponseEntity.noContent().build();
     }
 }
+
