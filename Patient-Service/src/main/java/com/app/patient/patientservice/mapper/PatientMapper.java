@@ -18,7 +18,8 @@ public final class PatientMapper {
                 patient.getName(),
                 patient.getEmail(),
                 patient.getPhone(),
-                patient.getAddress()
+                patient.getAddress(),
+                patient.getRegDate()
         );
     }
 

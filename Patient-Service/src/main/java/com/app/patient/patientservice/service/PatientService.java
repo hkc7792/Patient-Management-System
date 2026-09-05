@@ -57,35 +57,40 @@ public class PatientService {
 
     // Updates name, phone, and address of an existing patient. Throws NoSuchElementException if not found.
     @Transactional
-    public PatientResponse updatePatient(UUID id, Patient updatedData) {
-        log.info("Updating patient with id: {}", id);
+    public PatientResponse updatePatient(Patient updatedData) {
 
-        Patient existing = patientRepository.findById(id)
+
+        Patient existingPatient
+                = patientRepository.findByEmail(updatedData.getEmail())
                 .orElseThrow(() -> {
-                    log.warn("Update failed — patient not found with id: {}", id);
-                    return new NoSuchElementException("Patient not found with id: " + id);
+                    log.warn("Update failed — patient not found with email : {}",updatedData.getEmail());
+                    return new NoSuchElementException("Patient not found with email: "+updatedData.getEmail() );
                 });
+        existingPatient.setName(updatedData.getName());
+        existingPatient.setPhone(updatedData.getPhone());
+        existingPatient.setAddress(updatedData.getAddress());
 
-        existing.setName(updatedData.getName());
-        existing.setPhone(updatedData.getPhone());
-        existing.setAddress(updatedData.getAddress());
-
-        Patient updated = patientRepository.save(existing);
+        Patient updated = patientRepository.save(existingPatient);
         log.info("Patient updated successfully with id: {}", updated.getId());
         return PatientMapper.toResponse(updated);
     }
 
     // Deletes patient by ID. Throws NoSuchElementException if not found.
     @Transactional
-    public void deletePatient(UUID id) {
-        log.info("Deleting patient with id: {}", id);
+    public void deletePatient(String  emailID) {
+        log.info("Deleting patient with emailId: {}", emailID);
 
-        if (!patientRepository.existsById(id)) {
-            log.warn("Delete failed — patient not found with id: {}", id);
-            throw new NoSuchElementException("Patient not found with id: " + id);
+        if (!patientRepository.existsByEmail(emailID)) {
+            log.warn("Delete failed — patient not found with emailId: {}", emailID);
+            throw new NoSuchElementException("Patient not found with email: " + emailID);
         }
-
-        patientRepository.deleteById(id);
-        log.info("Patient deleted successfully with id: {}", id);
+        Patient existingPatient
+                = patientRepository.findByEmail(emailID)
+                .orElseThrow(() -> {
+                    log.warn("Delete failed — patient not found with email : {}", emailID);
+                    return new NoSuchElementException("Patient not found with email: " + emailID);
+                });
+        patientRepository.deleteById(existingPatient.getId());
+        log.info("Patient deleted successfully with email : {}", emailID);
     }
 }

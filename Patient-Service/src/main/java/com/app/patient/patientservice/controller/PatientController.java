@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -55,24 +56,24 @@ public class PatientController {
     public ResponseEntity<PatientResponse> createPatient(@Valid @RequestBody PatientRequest request) {
         log.info("POST /api/v1/patients/ — creating patient with email: {}", request.email());
         PatientResponse response = patientService.createPatient(PatientMapper.toEntity(request));
+        String email = response.email();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // PUT /{id} — updates name/phone/address of an existing patient; returns 200 OK.
-    @PutMapping("/{id}")
+    @PutMapping("/update")
     public ResponseEntity<PatientResponse> updatePatient(
-            @PathVariable UUID id,
             @Valid @RequestBody PatientRequest request) {
-        log.info("PUT /api/v1/patients/{} — updating patient", id);
-        PatientResponse response = patientService.updatePatient(id, PatientMapper.toEntity(request));
+        log.info("PUT Patient Request : {}", request);
+        PatientResponse response = patientService.updatePatient(PatientMapper.toEntity(request));
         return ResponseEntity.ok(response);
     }
 
-    // DELETE /{id} — deletes patient by ID; returns 204 No Content.
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePatient(@PathVariable UUID id) {
-        log.info("DELETE /api/v1/patients/{} — deleting patient", id);
-        patientService.deletePatient(id);
+    // DELETE ?email={email} — deletes patient by email query parameter; returns 204 No Content.
+    @DeleteMapping
+    public ResponseEntity<Void> deletePatient(@RequestParam(required = true) String email) {
+        log.info("DELETE /api/v1/patients?email={} — deleting patient by email", email);
+        patientService.deletePatient(email.trim());
         return ResponseEntity.noContent().build();
     }
 }
