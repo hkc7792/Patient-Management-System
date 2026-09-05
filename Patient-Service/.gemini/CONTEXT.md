@@ -1,35 +1,37 @@
-# CONTEXT.md — Patient-Management-System
+# CONTEXT.md — Patient-Service
 
-## Project Purpose
-A microservice-based Patient Management System designed to store, audit, and propagate
-patient records across downstream services using an event-driven architecture
-(outbox pattern).
+> **Scope:** This file covers Patient-Service internals only.
+> For the full system context (all 6 services, Kafka event contracts, cross-cutting
+> conventions), see the repo root: `.gemini/CONTEXT.md`
+
+## Service Purpose
+Patient-Service is the **authoritative source of truth** for patient records in the
+Patient-Management-System. It owns the `patient_db`, persists patient entities with
+full JPA auditing, and will publish `PatientRegistered` events via the Outbox Pattern
+to the Kafka event bus.
 
 ## Current State (Sprint 1 — Foundation)
-Only the **Patient-Service** microservice is implemented so far.
-It provides the core patient entity, JPA persistence, and an auditing layer.
-REST controllers, the outbox pattern, and downstream consumers are planned for
-future sprints.
+The core foundation is in place: Patient entity with JPA + auditing.
+REST controllers, the service layer, repository layer, outbox pattern, and Kafka
+publishing are planned for upcoming sprints.
 
-## Repository Layout
+## Repository Layout (Patient-Service)
 ```
-Patient-Management-System/
-├── Patient-Service/               ← Only active microservice
-│   ├── src/main/
-│   │   ├── java/com/app/patient/patientservice/
-│   │   │   ├── PatientServiceApplication.java   ← @SpringBootApplication entry point
-│   │   │   ├── config/
-│   │   │   │   └── JpaAuditingConfig.java        ← @EnableJpaAuditing, AuditorAware
-│   │   │   └── models/
-│   │   │       └── Patient.java                  ← Core JPA entity (@Entity, UUID PK)
-│   │   └── resources/
-│   │       ├── application.properties            ← Base config (active profile = test)
-│   │       ├── application-local.properties      ← H2 + local dev overrides
-│   │       └── data.sql                          ← 10 seed patient records
-│   └── src/test/
-│       └── resources/
-│           └── application-test.properties       ← H2 in-memory test config
-└── README.md
+Patient-Service/
+├── src/main/
+│   ├── java/com/app/patient/patientservice/
+│   │   ├── PatientServiceApplication.java   ← @SpringBootApplication entry point
+│   │   ├── config/
+│   │   │   └── JpaAuditingConfig.java        ← @EnableJpaAuditing, AuditorAware stub
+│   │   └── models/
+│   │       └── Patient.java                  ← Core JPA entity (@Entity, UUID PK)
+│   └── resources/
+│       ├── application.properties            ← Base config (active profile = test)
+│       ├── application-local.properties      ← H2 + local dev overrides
+│       └── data.sql                          ← 10 seed patient records
+└── src/test/
+    └── resources/
+        └── application-test.properties       ← H2 in-memory test config
 ```
 
 ## Key Design Decisions

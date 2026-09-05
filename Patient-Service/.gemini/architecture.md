@@ -1,48 +1,37 @@
-# Architecture.md — Patient-Management-System
+# architecture.md — Patient-Service
 
-## System Overview
+> **Scope:** This file covers Patient-Service internal architecture only.
+> For the full system architecture (all 6 services, Kafka topology, event contracts),
+> see the repo root: `.gemini/architecture.md`
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Patient-Management-System                        │
-│                                                                      │
-│  ┌───────────────────┐          ┌──────────────────────────────┐    │
-│  │   Client / UI     │─── HTTP ─▶  Patient-Service (port 4000) │    │
-│  └───────────────────┘          │                              │    │
-│                                 │  ┌──────────────────────┐    │    │
-│                                 │  │ PatientController     │    │    │
-│                                 │  │   (planned)           │    │    │
-│                                 │  └──────────┬───────────┘    │    │
-│                                 │             │                │    │
-│                                 │  ┌──────────▼───────────┐    │    │
-│                                 │  │ PatientService        │    │    │
-│                                 │  │   (planned)           │    │    │
-│                                 │  └──────────┬───────────┘    │    │
-│                                 │             │                │    │
-│                                 │  ┌──────────▼───────────┐    │    │
-│                                 │  │ PatientRepository     │    │    │
-│                                 │  │   (planned)           │    │    │
-│                                 │  └──────────┬───────────┘    │    │
-│                                 │             │                │    │
-│                                 │  ┌──────────▼───────────┐    │    │
-│                                 │  │   Patient Entity      │ ◀── NOW │
-│                                 │  │  (JPA + Auditing)     │    │    │
-│                                 │  └──────────┬───────────┘    │    │
-│                                 │             │                │    │
-│                                 │  ┌──────────▼───────────┐    │    │
-│                                 │  │  patient_db           │    │    │
-│                                 │  │  H2 (test/local)      │    │    │
-│                                 │  │  PostgreSQL (prod)     │    │    │
-│                                 │  └──────────────────────┘    │    │
-│                                 └──────────────────────────────┘    │
-│                                                                      │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                  Event Bus (Kafka — planned)                   │   │
-│  │  Patient-Service ──outbox──▶ topic: patient.events           │   │
-│  │                              ▼                                │   │
-│  │              Billing-Service / Notification-Service / ...     │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
+## Patient-Service in the System
+
+Patient-Service sits at the centre of the event-driven architecture:
+- Receives REST calls **synchronously** from the API Gateway (the only sync leg).
+- Publishes `PatientRegistered` **asynchronously** to the Kafka event bus via the Outbox Pattern.
+- Billing, Analytics, and Notification all react to that event downstream.
+
+## Internal Layer Architecture
+
+```mermaid
+graph TD
+  req["HTTP Request\n(from API Gateway)"]
+  ctrl["PatientController\n(planned)"]
+  svc["PatientService\n(planned) — @Transactional"]
+  repo["PatientRepository\n(planned) — JpaRepository"]
+  entity["Patient\n@Entity — table: patients"]
+  db[("patient_db\nH2 local / PostgreSQL prod")]
+  outbox["OutboxEvent\n(planned) — same DB transaction"]
+  kafka["Kafka\nPatientRegistered event"]
+
+  req --> ctrl
+  ctrl -->|"@Valid DTO"| svc
+  svc --> repo
+  repo --> entity
+  entity --> db
+  svc --> outbox
+  outbox --> db
+  outbox -.->|"poller / Debezium"| kafka
 ```
 
 ## Patient-Service — Internal Layers
