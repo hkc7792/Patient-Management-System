@@ -10,10 +10,14 @@ Patient-Management-System. It owns the `patient_db`, persists patient entities w
 full JPA auditing, and will publish `PatientRegistered` events via the Outbox Pattern
 to the Kafka event bus.
 
-## Current State (Sprint 1 — Foundation)
-The core foundation is in place: Patient entity with JPA + auditing.
-REST controllers, the service layer, repository layer, outbox pattern, and Kafka
-publishing are planned for upcoming sprints.
+## Current State (Active Implementation)
+The core Patient-Service features are implemented:
+- **JPA Entity & Auditing**: `Patient` with UUID PK and `@EnableJpaAuditing` (`created_by`, `created_at`, `updated_by`, `updated_at`).
+- **Data Access Layer**: `PatientRepository` extending `JpaRepository` with custom `findByEmail` and `existsByEmail`.
+- **Service Layer**: `PatientService` handling CRUD operations and business validation.
+- **DTOs & Mapping**: `PatientRequest`, `PatientResponse` records and `PatientMapper` utility.
+- **REST Controller**: `PatientController` at `/api/v1/patients` for GET (all / by ID), POST (create), PUT (`/update`), and DELETE (`?email=...`).
+- **Global Error Handling**: `GlobalExceptionHandler` mapping validation and runtime exceptions.
 
 ## Repository Layout (Patient-Service)
 ```
@@ -23,13 +27,30 @@ Patient-Service/
 │   │   ├── PatientServiceApplication.java   ← @SpringBootApplication entry point
 │   │   ├── config/
 │   │   │   └── JpaAuditingConfig.java        ← @EnableJpaAuditing, AuditorAware stub
-│   │   └── models/
-│   │       └── Patient.java                  ← Core JPA entity (@Entity, UUID PK)
+│   │   ├── controller/
+│   │   │   └── PatientController.java        ← REST endpoints (/api/v1/patients)
+│   │   ├── dto/
+│   │   │   ├── PatientRequest.java           ← Inbound DTO with validation
+│   │   │   └── PatientResponse.java          ← Outbound DTO
+│   │   ├── exception/
+│   │   │   └── GlobalExceptionHandler.java   ← Exception handler
+│   │   ├── mapper/
+│   │   │   └── PatientMapper.java            ← Entity ↔ DTO mapper
+│   │   ├── models/
+│   │   │   └── Patient.java                  ← Core JPA entity (@Entity, UUID PK)
+│   │   ├── repository/
+│   │   │   └── PatientRepository.java        ← Spring Data JPA repository
+│   │   └── service/
+│   │       └── PatientService.java           ← Business logic (@Service, @Transactional)
 │   └── resources/
-│       ├── application.properties            ← Base config (active profile = test)
+│       ├── application.properties            ← Base config (active profile = local)
 │       ├── application-local.properties      ← H2 + local dev overrides
 │       └── data.sql                          ← 10 seed patient records
 └── src/test/
+    ├── java/com/app/patient/patientservice/
+    │   ├── PatientServiceApplicationTests.java
+    │   ├── mapper/PatientMapperTest.java
+    │   └── repository/PatientRepositoryTest.java
     └── resources/
         └── application-test.properties       ← H2 in-memory test config
 ```
@@ -50,8 +71,8 @@ Patient-Service/
 
 | Profile | Datasource | Flyway | Purpose |
 |---|---|---|---|
-| `test` (default) | H2 in-memory | disabled | Unit / integration tests |
-| `local` | H2 in-memory | disabled | Local manual runs, H2 console |
+| `local` (default) | H2 in-memory | disabled | Local manual runs, H2 console, default dev loop |
+| `test` | H2 in-memory | disabled | Unit / integration tests (`@ActiveProfiles("test")`) |
 | `prod` (planned) | PostgreSQL | enabled | Production |
 
 ## Tech Stack
@@ -59,7 +80,7 @@ Patient-Service/
 | Layer | Technology |
 |---|---|
 | Language | Java 21 |
-| Framework | Spring Boot 4.1.1 |
+| Framework | Spring Boot 3.4.1 |
 | Persistence | Spring Data JPA + Hibernate |
 | Validation | Jakarta Bean Validation (`spring-boot-starter-validation`) |
 | Test DB | H2 (PostgreSQL-compatible mode) |
@@ -69,10 +90,10 @@ Patient-Service/
 | Build | Maven 3, `spring-boot-maven-plugin` |
 
 ## Upcoming Work
-- [ ] Repository layer (`PatientRepository extends JpaRepository`)
-- [ ] Service layer (`PatientService`)
-- [ ] REST controller (`PatientController`) — CRUD endpoints
-- [ ] DTOs + MapStruct mappers
+- [x] Repository layer (`PatientRepository extends JpaRepository`)
+- [x] Service layer (`PatientService`)
+- [x] REST controller (`PatientController`) — CRUD endpoints
+- [x] DTOs + Mappers (`PatientRequest`, `PatientResponse`, `PatientMapper`)
 - [ ] OutboxEvent entity + publisher
 - [ ] Kafka / messaging consumer services
 - [ ] Spring Security + Cognito integration (replaces `AuditorAware` stub)

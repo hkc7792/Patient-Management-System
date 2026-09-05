@@ -15,17 +15,17 @@ Patient-Service sits at the centre of the event-driven architecture:
 
 ```mermaid
 graph TD
-  req["HTTP Request\n(from API Gateway)"]
-  ctrl["PatientController\n(planned)"]
-  svc["PatientService\n(planned) — @Transactional"]
-  repo["PatientRepository\n(planned) — JpaRepository"]
+  req["HTTP Request\n(from Client / API Gateway)"]
+  ctrl["PatientController\n@RestController — /api/v1/patients"]
+  svc["PatientService\n@Service — @Transactional"]
+  repo["PatientRepository\nJpaRepository"]
   entity["Patient\n@Entity — table: patients"]
   db[("patient_db\nH2 local / PostgreSQL prod")]
   outbox["OutboxEvent\n(planned) — same DB transaction"]
   kafka["Kafka\nPatientRegistered event"]
 
   req --> ctrl
-  ctrl -->|"@Valid DTO"| svc
+  ctrl -->|"@Valid PatientRequest"| svc
   svc --> repo
   repo --> entity
   entity --> db
@@ -43,32 +43,54 @@ PatientServiceApplication   ← Spring Boot entry point
 │   └── JpaAuditingConfig   ← Enables @CreatedBy / @LastModifiedBy
 │                             AuditorAware stub returns "system"
 │
-└── models/
-    └── Patient             ← @Entity  table=patients
-        ├── id         UUID   PK, auto-generated (Hibernate UUID strategy)
-        ├── name       VARCHAR(150)  @NotBlank
-        ├── email      VARCHAR(150)  @Email @NotBlank UNIQUE
-        ├── phone      VARCHAR(20)
-        ├── address    VARCHAR(255)
-        ├── birthDate  DATE          @Past
-        ├── regDate    DATE          defaulted to NOW() via @PrePersist
-        ├── createdBy  VARCHAR(100)  @CreatedBy (auditing)
-        ├── createdAt  TIMESTAMP     @CreationTimestamp
-        ├── updatedBy  VARCHAR(100)  @LastModifiedBy (auditing)
-        └── updatedAt  TIMESTAMP     @UpdateTimestamp
+├── controller/
+│   └── PatientController   ← REST Endpoints:
+│                             GET  /api/v1/patients/ (get all)
+│                             GET  /api/v1/patients/{id} (get by UUID)
+│                             POST /api/v1/patients/ (create patient)
+│                             PUT  /api/v1/patients/update (update patient)
+│                             DELETE /api/v1/patients?email={email} (delete by email)
+│
+├── dto/
+│   ├── PatientRequest      ← Inbound DTO with validation annotations (@NotBlank, @Email, @Past)
+│   └── PatientResponse     ← Outbound DTO (exposes safe fields; internal audit fields omitted)
+│
+├── mapper/
+│   └── PatientMapper       ← Entity ↔ DTO mapping utility
+│
+├── models/
+│   └── Patient             ← @Entity table=patients
+│       ├── id         UUID   PK, auto-generated (Hibernate UUID strategy)
+│       ├── name       VARCHAR(150)  @NotBlank
+│       ├── email      VARCHAR(150)  @Email @NotBlank UNIQUE
+│       ├── phone      VARCHAR(20)
+│       ├── address    VARCHAR(255)
+│       ├── birthDate  DATE          @Past
+│       ├── regDate    DATE          defaulted to NOW() via @PrePersist
+│       ├── createdBy  VARCHAR(100)  @CreatedBy (auditing)
+│       ├── createdAt  TIMESTAMP     @CreationTimestamp
+│       ├── updatedBy  VARCHAR(100)  @LastModifiedBy (auditing)
+│       └── updatedAt  TIMESTAMP     @UpdateTimestamp
+│
+├── repository/
+│   └── PatientRepository   ← Spring Data JPA repository (findByEmail, existsByEmail)
+│
+└── service/
+    └── PatientService      ← Business logic layer (@Service, @Transactional)
 ```
 
 ## Data Flow — Create Patient
 
 ```
-POST /patients (planned)
+POST /api/v1/patients/
     │
     ▼
-PatientController.createPatient(PatientRequestDTO)
+PatientController.createPatient(PatientRequest)
     │  validates (@Valid)
     ▼
-PatientService.createPatient(dto)
-    │  maps DTO → Patient entity
+PatientService.createPatient(patient)
+    │  checks for duplicate email via PatientRepository.existsByEmail
+    │  maps DTO → Patient entity via PatientMapper
     ▼
 PatientRepository.save(patient)
     │  Hibernate fires @PrePersist → sets regDate
