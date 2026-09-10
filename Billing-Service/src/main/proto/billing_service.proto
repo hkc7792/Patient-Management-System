@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "billing";
+
+service BillingService {
+  rpc CreateBillingAccount (BillingRequest) returns (BillingResponse);
+}
+
+message BillingRequest {
+  string patientId = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message BillingResponse {
+  string accountId = 1;
+  string status = 2;
+}
+
+
+/*
+ * BillingService proto file
+
+ Explanation
+
+This proto3 file defines a gRPC billing service.
+
+Options:
+
+java_multiple_files = true → generates a separate .java file per message/service instead of one big nested file.
+java_package = "billing" → generated Java classes go in package billing.
+
+Service:
+
+protobuf
+service BillingService {
+  rpc CreateBillingAccount (BillingRequest) returns (BillingResponse);
+}
+
+Defines one RPC method, CreateBillingAccount — takes a BillingRequest, returns a BillingResponse. It's unary (single request → single response, no streaming).
+
+Messages:
+
+protobuf
+message BillingRequest {
+  string patientId = 1;
+  string name = 2;
+  string email = 3;
+}
+
+Input data: patient ID, name, email. The numbers (=1, =2, =3) are field tags used in binary encoding — never change/reuse them once in use.
+
+protobuf
+message BillingResponse {
+  string accountId = 1;
+  string status = 2;
+}
+
+Output data: created account ID and a status string (e.g. "CREATED").
+
+Result: protoc generates Java classes BillingRequest, BillingResponse, and a BillingServiceGrpc class with client stubs + a server base class to implement createBillingAccount().
+
+Minor note: field names use camelCase, but protobuf convention is snake_case (e.g. patient_id) — not a bug, just non-idiomatic.
+ */
