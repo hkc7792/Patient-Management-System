@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+
+  # ---------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_pass
+    ports:
+      - "5432:5432"          # host:container -> optional, useful for local DB tools (pgAdmin/DBeaver)
+    volumes:
+      - postgres-data:/var/lib/postgresql/data   # named volume for persistence
+    networks:
+      - patient-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patient_user -d patient_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------
+  # Patient Service (Spring Boot)
+  # ---------------------------------------
+  patient-service:
+    build:
+      context: ./patient-service        # path to the folder containing patient-service's Dockerfile
+      dockerfile: Dockerfile
+    container_name: patient-service
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 4000
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/patient_db
+      SPRING_DATASOURCE_USERNAME: patient_user
+      SPRING_DATASOURCE_PASSWORD: patient_pass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "9090:4000"          # host:container -> your access point: http://localhost:9090
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - patient-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+# ---------------------------------------
+# Shared network for inter-service communication
+# ---------------------------------------
+networks:
+  patient-net:
+    driver: bridge
+
+# ---------------------------------------
+# Named volume for Postgres data persistence
+# ---------------------------------------
+volumes:
+  postgres-data:
+    driver: local
