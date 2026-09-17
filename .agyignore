@@ -1,0 +1,82 @@
+# ==========================================
+# Dependencies & Package Managers
+# ==========================================
+node_modules/
+.pnpm-store/
+vendor/
+bin/
+obj/
+.venv/
+env/
+venv/
+
+# ==========================================
+# Build Outputs & Generated Artifacts
+# ==========================================
+dist/
+build/
+target/
+out/
+*.class
+*.jar
+*.war
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ==========================================
+# Logs & Temporary Files
+# ==========================================
+*.log
+logs/
+*.tmp
+*.temp
+*.swp
+*.bak
+.cache/
+
+# ==========================================
+# Environmental & Sensitive Files
+# (Prevent token leak of secrets/keys)
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+
+# ==========================================
+# IDE & System Files
+# ==========================================
+.git/
+.svn/
+.hg/
+.idea/
+.vscode/
+*.suo
+*.user
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Large Data & Media Assets
+# ==========================================
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+*.zip
+*.tar
+*.gz
+*.7z
+*.iso
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.pdf

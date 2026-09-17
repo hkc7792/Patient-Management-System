@@ -12,7 +12,7 @@ services:
     environment:
       POSTGRES_DB: patient_db
       POSTGRES_USER: patient_user
-      POSTGRES_PASSWORD: patient_pass
+      POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"          # host:container -> optional, useful for local DB tools (pgAdmin/DBeaver)
     volumes:
@@ -31,15 +31,17 @@ services:
   # ---------------------------------------
   patient-service:
     build:
-      context: ./patient-service        # path to the folder containing patient-service's Dockerfile
+      context: ./Patient-Service        # path to the folder containing patient-service's Dockerfile
       dockerfile: Dockerfile
+    image: patient-service:latest       # tags the built image with this name
     container_name: patient-service
     restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: dev       # overrides hardcoded `local` in application.properties
       SERVER_PORT: 4000
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/patient_db
       SPRING_DATASOURCE_USERNAME: patient_user
-      SPRING_DATASOURCE_PASSWORD: patient_pass
+      SPRING_DATASOURCE_PASSWORD: password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "9090:4000"          # host:container -> your access point: http://localhost:9090

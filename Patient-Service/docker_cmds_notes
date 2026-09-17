@@ -1,0 +1,28 @@
+docker run -d ^
+  --name patient-service-db ^
+  -e POSTGRES_DB=patient-db ^
+  -e POSTGRES_USER=patient_user ^
+  -e POSTGRES_PASSWORD=password ^
+  -p 5432:5432 ^
+  -v "%cd%/patient_data":/var/lib/postgresql/data ^
+  postgres:16-alpine
+
+ ---------------
+docker build -t <image-name>:<tag> <path-to-dockerfile-folder>
+docker build -t patient:v1 .
+
+==========
+docker compose
+1. Build the images without starting the containers
+docker compose build
+2. Build and start the containers immediately (Most Common)
+docker compose up --build
+
+3. Force a fresh build without using cached layers
+docker compose build --no-cache
+
+4. Build a specific service only
+docker compose build patient-service
+
+
+
